@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, UserPlus, Contact, Phone, Upload, Shield, Wallet, Users } from "lucide-react";
+import { Plus, UserPlus, Contact, Phone, Upload, Shield, Wallet, Users, Smartphone } from "lucide-react";
 import { Player, PlayerCategory, InsertPlayer } from "@shared/schema";
 
 interface AddPlayerModalProps {
@@ -29,6 +29,8 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
   const [selectedSection, setSelectedSection] = useState('core');
   const [selectedMode, setSelectedMode] = useState<'manual' | 'contacts'>('manual');
   const [uploadedContacts, setUploadedContacts] = useState<typeof mockContacts>([]);
+  const [deviceContacts, setDeviceContacts] = useState<typeof mockContacts>([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [formData, setFormData] = useState<InsertPlayer>({
     name: '',
     phone: '',
@@ -72,6 +74,56 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
       phone: contact.phone
     }));
     setSelectedMode('manual');
+  };
+
+  // Check if Contact Picker API is supported
+  const isContactPickerSupported = () => {
+    return 'contacts' in navigator && 'ContactsManager' in window;
+  };
+
+  // Native contact picker function
+  const handleNativeContactPicker = async () => {
+    if (!isContactPickerSupported()) {
+      alert('Contact picker is not supported on this device. Please use manual entry or upload a file.');
+      return;
+    }
+
+    setIsLoadingContacts(true);
+    try {
+      // @ts-ignore - ContactsManager is not in TypeScript types yet
+      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+      
+      const formattedContacts = contacts
+        .filter((contact: any) => contact.name && contact.tel && contact.tel.length > 0)
+        .map((contact: any) => ({
+          name: contact.name[0] || 'Unknown',
+          phone: contact.tel[0] || ''
+        }))
+        .filter((contact: any) => !isPlayerExists(contact.name));
+
+      setDeviceContacts(prev => {
+        // Merge with existing, avoiding duplicates
+        const merged = [...prev];
+        for (const contact of formattedContacts) {
+          if (!merged.some(c => 
+            c.name.toLowerCase() === contact.name.toLowerCase() || 
+            c.phone.replace(/\s+/g, '') === contact.phone.replace(/\s+/g, '')
+          )) {
+            merged.push(contact);
+          }
+        }
+        return merged;
+      });
+
+      if (formattedContacts.length > 0) {
+        setSelectedMode('contacts');
+      }
+    } catch (error) {
+      console.error('Error accessing contacts:', error);
+      alert('Unable to access contacts. Please check permissions or use manual entry.');
+    } finally {
+      setIsLoadingContacts(false);
+    }
   };
 
   const handleContactUpload = () => {
@@ -159,7 +211,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
     );
   };
 
-  const availableContacts = [...mockContacts, ...uploadedContacts].filter(contact => 
+  const availableContacts = [...mockContacts, ...uploadedContacts, ...deviceContacts].filter(contact => 
     !isPlayerExists(contact.name)
   );
 
@@ -245,7 +297,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Manual/Contacts Toggle */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       type="button"
                       variant={selectedMode === 'manual' ? 'default' : 'outline'}
@@ -263,6 +315,18 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       data-testid="mode-contacts"
                     >
                       From Contacts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNativeContactPicker}
+                      disabled={isLoadingContacts}
+                      className="gap-2"
+                      data-testid="button-device-contacts"
+                    >
+                      <Smartphone className="h-3 w-3" />
+                      {isLoadingContacts ? 'Loading...' : 'Device Contacts'}
                     </Button>
                     <Button
                       type="button"
@@ -395,7 +459,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Manual/Contacts Toggle */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       type="button"
                       variant={selectedMode === 'manual' ? 'default' : 'outline'}
@@ -413,6 +477,18 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       data-testid="mode-contacts"
                     >
                       From Contacts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNativeContactPicker}
+                      disabled={isLoadingContacts}
+                      className="gap-2"
+                      data-testid="button-device-contacts"
+                    >
+                      <Smartphone className="h-3 w-3" />
+                      {isLoadingContacts ? 'Loading...' : 'Device Contacts'}
                     </Button>
                     <Button
                       type="button"
@@ -543,7 +619,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Manual/Contacts Toggle */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button
                       type="button"
                       variant={selectedMode === 'manual' ? 'default' : 'outline'}
@@ -561,6 +637,18 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       data-testid="mode-contacts"
                     >
                       From Contacts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleNativeContactPicker}
+                      disabled={isLoadingContacts}
+                      className="gap-2"
+                      data-testid="button-device-contacts"
+                    >
+                      <Smartphone className="h-3 w-3" />
+                      {isLoadingContacts ? 'Loading...' : 'Device Contacts'}
                     </Button>
                     <Button
                       type="button"
