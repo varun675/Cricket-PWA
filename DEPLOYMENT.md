@@ -101,9 +101,40 @@ Your deployed PWA will include:
 
 ### Common Issues:
 
-1. **404 Error**: Check if repository name matches the base path in `vite.config.ts`
-2. **Build Fails**: Check the Actions tab for error logs
-3. **Assets Not Loading**: Ensure all paths are relative in your code
+1. **"Get Pages site failed" Error**: 
+   - GitHub Pages might not be enabled yet
+   - Use the alternative deployment method (see below)
+
+2. **404 Error**: Check if repository name matches the base path in `vite.config.ts`
+
+3. **Build Fails**: Check the Actions tab for error logs
+
+4. **Assets Not Loading**: Ensure all paths are relative in your code
+
+### 🔄 Alternative Deployment Method
+
+If you're getting the "Get Pages site failed" error, use the simpler deployment workflow:
+
+1. **Delete or rename** `deploy.yml` to `deploy.yml.backup`
+2. **Rename** `deploy-simple.yml` to `deploy.yml`
+3. **Push the changes** - this method will automatically enable Pages
+
+```bash
+# In your repository root
+mv .github/workflows/deploy.yml .github/workflows/deploy.yml.backup
+mv .github/workflows/deploy-simple.yml .github/workflows/deploy.yml
+git add .
+git commit -m "Switch to simple deployment method"
+git push
+```
+
+### Manual Pages Setup (If Needed):
+
+1. Go to **Repository Settings → Pages**
+2. Under **Source**, select **Deploy from a branch**
+3. Select **gh-pages** branch
+4. Click **Save**
+5. Then switch back to **GitHub Actions** after first deployment
 
 ### Quick Fixes:
 
@@ -113,6 +144,10 @@ npm run build:client
 
 # Check if build folder is created
 ls -la client/dist/
+
+# Check repository permissions
+# Go to Settings → Actions → General → Workflow permissions
+# Select "Read and write permissions"
 ```
 
 ## 🎉 Success!
