@@ -24,90 +24,45 @@ function App() {
   const [currentMatch, setCurrentMatch] = useState<Match | null>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
-  // Mock data for demonstration - in real app this would come from localStorage/IndexedDB
-  //todo: remove mock functionality
-  const [players, setPlayers] = useState<Player[]>([
-    { id: '1', name: 'Arjun Patel', phone: '+91 98765 43210', category: PlayerCategory.CORE, isActive: true },
-    { id: '2', name: 'Rohit Kumar', phone: '+91 87654 32109', category: PlayerCategory.SELF_PAID, isActive: true },
-    { id: '3', name: 'Vikas Singh', category: PlayerCategory.UNPAID, isActive: true },
-    { id: '4', name: 'Amit Sharma', phone: '+91 76543 21098', category: PlayerCategory.CORE, isActive: true },
-    { id: '5', name: 'Karan Gupta', category: PlayerCategory.SELF_PAID, isActive: true },
-    { id: '6', name: 'Deepak Verma', phone: '+91 65432 10987', category: PlayerCategory.UNPAID, isActive: true },
-    { id: '7', name: 'Suresh Yadav', category: PlayerCategory.CORE, isActive: true },
-    { id: '8', name: 'Rajesh Tiwari', phone: '+91 54321 09876', category: PlayerCategory.SELF_PAID, isActive: true },
-    { id: '9', name: 'Manoj Kumar', category: PlayerCategory.UNPAID, isActive: true },
-    { id: '10', name: 'Vikram Singh', phone: '+91 43210 98765', category: PlayerCategory.CORE, isActive: true },
-    { id: '11', name: 'Ravi Patel', category: PlayerCategory.SELF_PAID, isActive: true }
-  ]);
-  
-  const [pdfHistory, setPdfHistory] = useState<PDFHistory[]>([
-    {
-      id: '1',
-      matchId: 'match-1',
-      filename: 'United77_vs_Delhi_Warriors_2024-01-15.pdf',
-      createdAt: '2024-01-15T10:00:00Z',
-      opponentTeam: 'Delhi Warriors',
-      totalFees: 2400,
-      matchData: {
-        date: '2024-01-15',
-        selectedPlayers: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'],
-        feeSplit: {
-          perPlayerAmount: 218.18,
-          coreShareExtra: 72.73,
-          totalPlayers: 11,
-          corePlayers: 4,
-          selfPaidPlayers: 4,
-          unpaidPlayers: 3
-        },
-        payments: [
-          { playerId: '1', amount: 290.91, paid: false },
-          { playerId: '4', amount: 290.91, paid: false },
-          { playerId: '7', amount: 290.91, paid: false },
-          { playerId: '10', amount: 290.91, paid: false },
-          { playerId: '2', amount: 218.18, paid: false },
-          { playerId: '5', amount: 218.18, paid: false },
-          { playerId: '8', amount: 218.18, paid: false },
-          { playerId: '11', amount: 218.18, paid: false },
-          { playerId: '3', amount: 218.18, paid: false },
-          { playerId: '6', amount: 218.18, paid: false },
-          { playerId: '9', amount: 218.18, paid: false }
-        ]
-      }
-    },
-    {
-      id: '2',
-      matchId: 'match-2', 
-      filename: 'United77_vs_Mumbai_Kings_2024-01-20.pdf',
-      createdAt: '2024-01-20T14:30:00Z',
-      opponentTeam: 'Mumbai Kings',
-      totalFees: 3000,
-      matchData: {
-        date: '2024-01-20',
-        selectedPlayers: ['1', '2', '4', '5', '7', '8', '10', '11', '3', '6', '9'],
-        feeSplit: {
-          perPlayerAmount: 272.73,
-          coreShareExtra: 90.91,
-          totalPlayers: 11,
-          corePlayers: 4,
-          selfPaidPlayers: 4,
-          unpaidPlayers: 3
-        },
-        payments: [
-          { playerId: '1', amount: 363.64, paid: false },
-          { playerId: '4', amount: 363.64, paid: false },
-          { playerId: '7', amount: 363.64, paid: false },
-          { playerId: '10', amount: 363.64, paid: false },
-          { playerId: '2', amount: 272.73, paid: false },
-          { playerId: '5', amount: 272.73, paid: false },
-          { playerId: '8', amount: 272.73, paid: false },
-          { playerId: '11', amount: 272.73, paid: false },
-          { playerId: '3', amount: 272.73, paid: false },
-          { playerId: '6', amount: 272.73, paid: false },
-          { playerId: '9', amount: 272.73, paid: false }
-        ]
-      }
+  // Load players from localStorage on app start
+  const [players, setPlayers] = useState<Player[]>(() => {
+    try {
+      const savedPlayers = localStorage.getItem('united77-players');
+      return savedPlayers ? JSON.parse(savedPlayers) : [];
+    } catch (error) {
+      console.error('Error loading players from localStorage:', error);
+      return [];
     }
-  ]);
+  });
+  
+  // Load PDF history from localStorage on app start
+  const [pdfHistory, setPdfHistory] = useState<PDFHistory[]>(() => {
+    try {
+      const savedHistory = localStorage.getItem('united77-pdf-history');
+      return savedHistory ? JSON.parse(savedHistory) : [];
+    } catch (error) {
+      console.error('Error loading PDF history from localStorage:', error);
+      return [];
+    }
+  });
+
+  // Save players to localStorage whenever players array changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('united77-players', JSON.stringify(players));
+    } catch (error) {
+      console.error('Error saving players to localStorage:', error);
+    }
+  }, [players]);
+
+  // Save PDF history to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('united77-pdf-history', JSON.stringify(pdfHistory));
+    } catch (error) {
+      console.error('Error saving PDF history to localStorage:', error);
+    }
+  }, [pdfHistory]);
 
   // Check URL params for direct navigation
   useEffect(() => {

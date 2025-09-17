@@ -14,22 +14,18 @@ interface AddPlayerModalProps {
   existingPlayers: Player[];
 }
 
-// Mock contacts for demo purposes
-//todo: remove mock functionality
-const mockContacts = [
-  { name: "Arun Kumar", phone: "+91 99888 77766" },
-  { name: "Deepak Sharma", phone: "+91 88777 66655" }, 
-  { name: "Karan Singh", phone: "+91 77666 55544" },
-  { name: "Raj Patel", phone: "+91 66555 44433" },
-  { name: "Suresh Gupta", phone: "+91 55444 33322" }
-];
+// No mock contacts - users will add their own contacts
+type Contact = {
+  name: string;
+  phone: string;
+};
 
 export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlayerModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSection, setSelectedSection] = useState('core');
   const [selectedMode, setSelectedMode] = useState<'manual' | 'contacts'>('manual');
-  const [uploadedContacts, setUploadedContacts] = useState<typeof mockContacts>([]);
-  const [deviceContacts, setDeviceContacts] = useState<typeof mockContacts>([]);
+  const [uploadedContacts, setUploadedContacts] = useState<Contact[]>([]);
+  const [deviceContacts, setDeviceContacts] = useState<Contact[]>([]);
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [formData, setFormData] = useState<InsertPlayer>({
     name: '',
@@ -67,7 +63,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
     }
   };
 
-  const handleContactSelect = (contact: typeof mockContacts[0]) => {
+  const handleContactSelect = (contact: Contact) => {
     setFormData(prev => ({
       ...prev,
       name: contact.name,
@@ -81,62 +77,107 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
     return 'contacts' in navigator && 'ContactsManager' in window;
   };
 
-  // Native contact picker function
+  // Check if we're on mobile
+  const isMobileDevice = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // Alternative contact access methods
+  const handleAlternativeContactAccess = () => {
+    const isMobile = isMobileDevice();
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+
+    let message = "Contact access options:\n\n";
+    
+    if (isIOS) {
+      message += "📱 iOS Options:\n";
+      message += "1. Use Safari browser for better PWA support\n";
+      message += "2. Install this app to home screen first\n";
+      message += "3. Try the 'Upload' button to import contacts from Files app\n";
+      message += "4. Use manual entry for individual contacts\n\n";
+      message += "💡 Tip: Export contacts from Contacts app as vCard, then upload here";
+    } else if (isAndroid) {
+      message += "📱 Android Options:\n";
+      message += "1. Use Chrome browser for best support\n";
+      message += "2. Try the 'Upload' button to import contacts CSV\n";
+      message += "3. Export contacts from Google Contacts as CSV\n";
+      message += "4. Use manual entry for individual contacts\n\n";
+      message += "💡 Tip: Go to contacts.google.com → Export → CSV format";
+    } else {
+      message += "💻 Desktop/Other:\n";
+      message += "1. Export contacts from your phone/email as CSV\n";
+      message += "2. Use the 'Upload' button to import the file\n";
+      message += "3. Use manual entry for individual contacts\n";
+    }
+
+    alert(message);
+  };
+
+  // Native contact picker function with fallbacks
   const handleNativeContactPicker = async () => {
-    if (!isContactPickerSupported()) {
-      alert('Contact picker is not supported on this device. Please use manual entry or upload a file.');
-      return;
-    }
+    // First try the Contact Picker API
+    if (isContactPickerSupported()) {
+      setIsLoadingContacts(true);
+      try {
+        // @ts-ignore - ContactsManager is not in TypeScript types yet
+        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+        
+        const formattedContacts = contacts
+          .filter((contact: any) => contact.name && contact.tel && contact.tel.length > 0)
+          .map((contact: any) => ({
+            name: contact.name[0] || 'Unknown',
+            phone: contact.tel[0] || ''
+          }))
+          .filter((contact: any) => !isPlayerExists(contact.name));
 
-    setIsLoadingContacts(true);
-    try {
-      // @ts-ignore - ContactsManager is not in TypeScript types yet
-      const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
-      
-      const formattedContacts = contacts
-        .filter((contact: any) => contact.name && contact.tel && contact.tel.length > 0)
-        .map((contact: any) => ({
-          name: contact.name[0] || 'Unknown',
-          phone: contact.tel[0] || ''
-        }))
-        .filter((contact: any) => !isPlayerExists(contact.name));
-
-      setDeviceContacts(prev => {
-        // Merge with existing, avoiding duplicates
-        const merged = [...prev];
-        for (const contact of formattedContacts) {
-          if (!merged.some(c => 
-            c.name.toLowerCase() === contact.name.toLowerCase() || 
-            c.phone.replace(/\s+/g, '') === contact.phone.replace(/\s+/g, '')
-          )) {
-            merged.push(contact);
+        setDeviceContacts(prev => {
+          // Merge with existing, avoiding duplicates
+          const merged = [...prev];
+          for (const contact of formattedContacts) {
+            if (!merged.some(c => 
+              c.name.toLowerCase() === contact.name.toLowerCase() || 
+              c.phone.replace(/\s+/g, '') === contact.phone.replace(/\s+/g, '')
+            )) {
+              merged.push(contact);
+            }
           }
-        }
-        return merged;
-      });
+          return merged;
+        });
 
-      if (formattedContacts.length > 0) {
-        setSelectedMode('contacts');
+        if (formattedContacts.length > 0) {
+          setSelectedMode('contacts');
+        }
+        return;
+      } catch (error) {
+        console.error('Error accessing contacts:', error);
+        // Fall through to alternative methods
+      } finally {
+        setIsLoadingContacts(false);
       }
-    } catch (error) {
-      console.error('Error accessing contacts:', error);
-      alert('Unable to access contacts. Please check permissions or use manual entry.');
-    } finally {
-      setIsLoadingContacts(false);
     }
+
+    // If Contact Picker API fails or isn't supported, show alternatives
+    handleAlternativeContactAccess();
   };
 
   const handleContactUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.csv,.txt';
+    input.accept = '.csv,.txt,.vcf,.vcard'; // Added vCard support for iOS
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = (e) => {
           const text = e.target?.result as string;
-          parseContactsFile(text);
+          const fileName = file.name.toLowerCase();
+          
+          if (fileName.endsWith('.vcf') || fileName.endsWith('.vcard')) {
+            parseVCardFile(text);
+          } else {
+            parseContactsFile(text);
+          }
         };
         reader.readAsText(file);
       }
@@ -144,10 +185,65 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
     input.click();
   };
 
+  const parseVCardFile = (content: string) => {
+    try {
+      const vcardBlocks = content.split(/BEGIN:VCARD/i).filter(block => block.trim().length > 0);
+      const newContacts: Contact[] = [];
+      
+      for (const block of vcardBlocks) {
+        const lines = block.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        let name = '';
+        let phone = '';
+        
+        for (const line of lines) {
+          // Parse name (FN field)
+          if (line.startsWith('FN:')) {
+            name = line.substring(3).trim();
+          }
+          // Parse phone (TEL field)
+          else if (line.startsWith('TEL') && line.includes(':')) {
+            const phoneMatch = line.match(/:([+\d\s\-\(\)]+)$/);
+            if (phoneMatch) {
+              phone = phoneMatch[1].trim();
+            }
+          }
+        }
+        
+        if (name && phone && name.length > 1 && phone.length >= 10 && !isPlayerExists(name)) {
+          // Normalize phone number format
+          const normalizedPhone = phone.startsWith('+') ? phone : `+91 ${phone}`;
+          newContacts.push({ name, phone: normalizedPhone });
+        }
+      }
+      
+      if (newContacts.length > 0) {
+        setUploadedContacts(prev => {
+          const merged = [...prev];
+          for (const contact of newContacts) {
+            if (!merged.some(c => 
+              c.name.toLowerCase() === contact.name.toLowerCase() || 
+              c.phone.replace(/\s+/g, '') === contact.phone.replace(/\s+/g, '')
+            )) {
+              merged.push(contact);
+            }
+          }
+          return merged;
+        });
+        console.log(`Successfully uploaded ${newContacts.length} contacts from vCard file`);
+        setSelectedMode('contacts');
+      } else {
+        console.log('No valid contacts found in the vCard file');
+      }
+    } catch (error) {
+      console.error('Error parsing vCard file:', error);
+      alert('Error reading vCard file. Please try a different format or use manual entry.');
+    }
+  };
+
   const parseContactsFile = (content: string) => {
     try {
       const lines = content.trim().split('\n').filter(line => line.trim().length > 0);
-      const newContacts: typeof mockContacts = [];
+      const newContacts: Contact[] = [];
       
       // Skip header row if detected
       let startIndex = 0;
@@ -211,7 +307,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
     );
   };
 
-  const availableContacts = [...mockContacts, ...uploadedContacts, ...deviceContacts].filter(contact => 
+  const availableContacts = [...uploadedContacts, ...deviceContacts].filter(contact => 
     !isPlayerExists(contact.name)
   );
 
@@ -352,7 +448,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       <div className="max-h-32 overflow-y-auto space-y-2">
                         {availableContacts.length > 0 ? (
                           availableContacts.map((contact, index) => {
-                            const initials = contact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                            const initials = contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
                               <Card 
                                 key={index} 
@@ -514,7 +610,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       <div className="max-h-32 overflow-y-auto space-y-2">
                         {availableContacts.length > 0 ? (
                           availableContacts.map((contact, index) => {
-                            const initials = contact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                            const initials = contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
                               <Card 
                                 key={index} 
@@ -674,7 +770,7 @@ export default function AddPlayerModal({ onAddPlayer, existingPlayers }: AddPlay
                       <div className="max-h-32 overflow-y-auto space-y-2">
                         {availableContacts.length > 0 ? (
                           availableContacts.map((contact, index) => {
-                            const initials = contact.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                            const initials = contact.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
                               <Card 
                                 key={index} 
