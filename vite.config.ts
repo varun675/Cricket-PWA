@@ -24,9 +24,9 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
-  base: process.env.NODE_ENV === 'production' ? '/CrossMobile/' : '/',
+  base: process.env.NODE_ENV === 'production' ? '/Cricket-PWA/' : '/',
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "client/dist"),
     emptyOutDir: true,
   },
   server: {
